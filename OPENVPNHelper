@@ -1,0 +1,86 @@
+#!/bin/bash
+clear
+
+fix_proxy(){
+    
+    [ -e /etc/SSHPlus/proxy.py ] || {
+        echo "Instale o SSHPlus Primeiro!!"
+        return
+    }
+    
+    rm /tmp/proxy.py 2> /dev/null
+    echo "Baixando o arquivo proxy.py"
+    wget https://raw.githubusercontent.com/Dev4Shell/OpenVPNHelper/master/proxy.py -O /tmp/proxy.py &> /dev/null
+    
+    [ -e /tmp/proxy.py ] || {
+        echo "O Download do arquivo falhou!!"
+        return
+    }
+    echo "Copiando para o destino..."
+    cp -f /tmp/proxy.py /etc/SSHPlus/proxy.py
+    echo "CONCLUIDO!!"
+}
+
+get_ovpn(){
+    [ -e $HOME/SSHPLUS.ovpn ] || {
+        echo "Instale o OpenVPN para usar esse comando!!"
+        return
+    }
+    netstat -lnpt | grep -q ":80\s" && {
+        echo "Existe algum serviço usando a porta 80"
+        echo "Desative antes de continuar com esse comando!"
+        return
+    }
+    
+    
+    echo "Instalando servidor apache.."
+    apt install apache2 -y &> /dev/null
+    
+    cp $HOME/SSHPLUS.ovpn /var/www/html
+    chmod 777 /var/www/html/SSHPLUS.ovpn
+    echo "Baixe o arquivo SSHPlus.ovpn em http://IP_DO_SERVIDOR/SSHPLUS.ovpn"
+}
+
+finish(){
+    rm /var/www/html/SSHPLUS.ovpn &> /dev/null
+    echo "removendo servidor apache2..."
+    apt autoremove apache2 -y &> /dev/null
+}
+
+[[ $EUID -ne 0 ]] && {
+    echo -e "\033[1;33mDesculpe, \033[1;33mvocê precisa executar como root\033[0m"
+    exit 1
+}
+
+menu(){
+    clear
+cat << EOF
+1 - Corrrigir o Proxy Socks
+2 - Ativar o servidor apache
+3 - Desativar o servidor apache
+0 - Sair
+EOF
+    read -p "Digite uma opção: " opcao
+    clear
+    case $opcao in
+        1)
+            fix_proxy
+            ;;2)
+            get_ovpn
+            ;;3)
+            finish
+            ;;0)
+            exit 0
+            ;;*)
+            echo -e "\n\033[1;31mOpção invalida!!\033[0m"
+    esac
+    wait menu
+}
+
+wait(){
+    read -p "Pressione Enter para continuar..." a
+    "$1"
+}
+
+
+menu
